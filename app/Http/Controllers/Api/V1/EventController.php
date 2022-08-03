@@ -48,6 +48,7 @@ class EventController extends Controller
      */
     public function store(StoreEventRequest $request): JsonResponse
     {
+
         $event = new Event();
         $event->name = $request->name;
         $event->slug = Str::slug($request->slug ?? $request->name);
