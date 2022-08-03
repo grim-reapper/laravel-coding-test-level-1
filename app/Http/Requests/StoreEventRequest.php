@@ -27,7 +27,7 @@ class StoreEventRequest extends FormRequest
     {
         return [
             'name' => ['required', 'max:255'],
-            'slug' => ['max:255']
+            'slug' => ['max:255'],
         ];
     }
 
@@ -37,9 +37,12 @@ class StoreEventRequest extends FormRequest
      */
     protected function failedValidation(Validator $validator): array
     {
-        throw new HttpResponseException(response()->json([
-            'errors' => $validator->errors(),
-            'status' => true
-        ], 422));
+        if ($this->wantsJson() || $this->ajax()) {
+            throw new HttpResponseException(response()->json([
+                'errors' => $validator->errors(),
+                'status' => true,
+            ], 422));
+        }
+        parent::failedValidation($validator);
     }
 }

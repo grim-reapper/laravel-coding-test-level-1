@@ -42,7 +42,7 @@ class RouteServiceProvider extends ServiceProvider
 
             // custom api routes
             Route::group([
-                'middleware' => ['api_version:v1'],
+                'middleware' => ['api','api_version:v1'],
                 'namespace'  => "{$this->apiNamespace}\V1",
                 'prefix'     => 'api/v1',
             ], function ($router) {
