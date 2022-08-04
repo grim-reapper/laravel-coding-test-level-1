@@ -5,10 +5,16 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreEventRequest;
 use App\Models\Event;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Str;
 
 class EventController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('auth');
+    }
+
     /**
      * Display a listing of the resource.
      *
@@ -68,8 +74,15 @@ class EventController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function edit(Event $event)
+    public function edit($id)
     {
+        $cacheEvents = Redis::get('event_'.$id);
+        if(isset($cacheEvents)) {
+            $event = json_decode($cacheEvents, FALSE);
+        }else {
+            $event = Event::find($id);
+            Redis::set('event_' . $id, $event);
+        }
         return view('edit',compact('event'));
     }
 
@@ -86,8 +99,11 @@ class EventController extends Controller
         $event->slug = Str::slug($request->slug ?? $request->name);
         $event->start_at = $request->start_at;
         $event->end_at = $request->end_at;
-        $event->save();
+        if($event->save()){
+            Redis::del('event_' . $event->id);
 
+            Redis::set('event_' . $event->id, $event);
+        }
         return redirect()->route('events.index')->with('success','Event Has Been updated successfully');
     }
 
@@ -100,6 +116,7 @@ class EventController extends Controller
     public function destroy(Event $event)
     {
         $event->delete();
+        Redis::del('event_' . $event->id);
         return redirect()->route('events.index')->with('success','Event has been deleted successfully');
     }
 }

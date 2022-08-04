@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Events\SendMail;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreEventRequest;
 use App\Http\Requests\UpdateOrCreateEventRequest;
@@ -9,10 +10,15 @@ use App\Models\Event;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Str;
-
+use Event as EventFire;
 class EventController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('auth:api');
+    }
     /**
      * Display a listing of the resource.
      *
@@ -20,7 +26,13 @@ class EventController extends Controller
      */
     public function index()
     {
-        $events = Event::all();
+        $cacheEvents = Redis::get('events');
+        if(isset($cacheEvents)) {
+            $events = json_decode($cacheEvents, FALSE);
+        }else {
+            $events = $this->getAll();
+            Redis::set('events', $events);
+        }
         return response()->json(['ok' => true, 'data' => $events]);
     }
 
@@ -40,6 +52,10 @@ class EventController extends Controller
         //
     }
 
+    public function getAll()
+    {
+        return Event::all();
+    }
     /**
      * Store a newly created resource in storage.
      *
@@ -51,8 +67,15 @@ class EventController extends Controller
 
         $event = new Event();
         $event->name = $request->name;
+        $event->start_at = $request->start_at ?? now();
+        $event->end_at = $request->end_at ?? now();
         $event->slug = Str::slug($request->slug ?? $request->name);
-        $event->save();
+        if($event->save()){
+            Redis::del('events');
+            $events = $this->getAll();
+            Redis::set('events', $events);
+        }
+        event(new SendMail(auth()->id()));
         return response()->json(['ok' => true, 'data' => $event]);
     }
 
@@ -93,8 +116,15 @@ class EventController extends Controller
             $event = new Event();
         }
         $event->name = $request->name;
+        $event->start_at = $request->start_at ?? now();
+        $event->end_at = $request->end_at ?? now();
         $event->slug = Str::slug($request->slug ?? $request->name);
-        $event->save();
+        if($event->save()){
+            Redis::del('events');
+            $events = $this->getAll();
+            Redis::set('events', $events);
+        }
+
         return response()->json(['ok' => true, 'data' => $event]);
     }
 
@@ -109,8 +139,14 @@ class EventController extends Controller
     {
         $event = Event::find($id);
         $event->name = $request->name;
+        $event->start_at = $request->start_at ?? now();
+        $event->end_at = $request->end_at ?? now();
         $event->slug = Str::slug($request->slug ?? $request->name);
-        $event->save();
+        if($event->save()){
+            Redis::del('events');
+            $events = $this->getAll();
+            Redis::set('events', $events);
+        }
         return response()->json(['ok' => true, 'data' => $event]);
     }
     /**
@@ -121,7 +157,13 @@ class EventController extends Controller
      */
     public function destroy(Event $event)
     {
-        $event->delete();
+        if($event->delete()){
+            // Delete blog_$id from Redis
+            Redis::del('events');
+            $events = $this->getAll();
+            Redis::set('events', $events);
+        }
+
         return response()->json(['ok' => true, 'message' => 'Event deleted']);
     }
 }
