@@ -13,8 +13,13 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-//Route::get('/', function () {
-//    return view('welcome');
-//});
-
-Route::resource('events', \App\Http\Controllers\EventController::class);
+Route::get('/', [\App\Http\Controllers\WebAuthController::class, 'index']);
+Route::group(['middleware' => ['web']], function () {
+    Route::resource('events', \App\Http\Controllers\EventController::class);
+    Route::get('/posts', [\App\Http\Controllers\PostController::class, 'index'])->name('posts');
+    Route::get('logout', [\App\Http\Controllers\WebAuthController::class, 'logout'])->name('logout');
+});
+Route::get('login', [\App\Http\Controllers\WebAuthController::class, 'index'])->name('login');
+Route::post('doLogin', [\App\Http\Controllers\WebAuthController::class, 'doLogin'])->name('doLogin');
+Route::post('doRegister', [\App\Http\Controllers\WebAuthController::class, 'doRegister'])->name('doRegister');
+Route::get('register', [\App\Http\Controllers\WebAuthController::class, 'register'])->name('register');
